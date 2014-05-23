@@ -104,7 +104,7 @@ typedef struct {
     //
 } GALE_Data;
 
-void gale_init_null(GALE_Data **gd, int deviceId);
+void gale_init(GALE_Data **gd, int deviceId);
 ////////////////////////
 void gale_load_forcefield(GALE_Data *gd, const char *fname);
 void gale_load_contactmap(GALE_Data *gd, const char *fname, int num_conf);
