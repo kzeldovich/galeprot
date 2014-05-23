@@ -1,4 +1,7 @@
- #include "galelib.h"
+#include<stdio.h>
+#include<assert.h>
+
+#include "galelib.h"
 #include "kernels.h"
 
 

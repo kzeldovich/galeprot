@@ -1,6 +1,7 @@
       
 /*  GPU Accelerated Latice Evolution  */
 
+#include<float.h>
 #include "kernels.h"
 #include "galelib.h"
 

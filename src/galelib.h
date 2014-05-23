@@ -1,6 +1,6 @@
 
 /*  GPU Accelerated Latice Evolution  */
-
+/*
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -10,6 +10,7 @@
 #include <limits.h>
 #include <assert.h>
 #include <stddef.h>
+*/
 
 #define ALPHABET 21
 #define FACES 6

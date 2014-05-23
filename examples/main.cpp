@@ -1,6 +1,12 @@
-#include "galelib.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
 #include <time.h>
+#include <limits.h>
+#include <assert.h>
 
+#include "galelib.h"
 
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #define MIN(x,y) (((x)<(y))?(x):(y))
