@@ -31,7 +31,7 @@
 
 
 // assigns NULLs to every pointer in a GALE data struct ...
-void gale_init_null(GALE_Data **gd, int deviceId){
+void gale_init(GALE_Data **gd, int deviceId){
     //
     // UNDER CONSTRUCTION ...
     int deviceCount, gpuDeviceCount = 0;
