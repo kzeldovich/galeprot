@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
 
     // allocate GALE struct, the GPU
     GALE_Data *data_ptr;
-    gale_init_null(&data_ptr,0);
+    gale_init(&data_ptr,0);
 
     // allocate sequences, binding pairs and load from files
     unsigned char *seqarray;
