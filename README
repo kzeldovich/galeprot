@@ -1,3 +1,13 @@
 GALEprot is a GPU-accelerated library for protein threading and lattice
 protein folding.
 
+To compile:
+make
+make install
+
+To run examples:
+
+cd examples
+make
+./runme
+
