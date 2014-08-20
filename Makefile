@@ -1,5 +1,5 @@
 NVCC=nvcc
-NVCCARCH=-arch=sm_30
+NVCCARCH=-arch=sm_20
 
 SRCDIR=src/
 
