@@ -57,9 +57,12 @@ int main(int argc, char **argv) {
     memset(conf_pairs, 0, 2*num_pairs*sizeof(int));
 
     // allocate pnat & inat arrays, binding array to be allocated too ...
+    float   *enat = (float *)malloc(num_seq*sizeof(float));     assert(enat != NULL);
     float   *pnat = (float *)malloc(num_seq*sizeof(float));     assert(pnat != NULL);
+    float   *gnat = (float *)malloc(num_seq*sizeof(float));     assert(gnat != NULL);
     int     *inat = (int *)malloc(num_seq*sizeof(int));         assert(inat != NULL);
     float   *ebind = (float *)malloc(num_pairs*sizeof(float)); assert(ebind != NULL);
+    float   *gbind = (float *)malloc(num_pairs*sizeof(float)); assert(gbind != NULL);
     float   *pbind = (float *)malloc(num_pairs*sizeof(float)); assert(pbind != NULL);
     int     *ibind = (int *)malloc(num_pairs*sizeof(int));     assert(ibind != NULL);
     
@@ -75,11 +78,15 @@ int main(int argc, char **argv) {
     // connect seqarray to the device ...
     gale_set_seqarray(data_ptr, seqarray, seqlen, num_seq);
     gale_set_bind_pairs(data_ptr, bind_pairs, conf_pairs, num_pairs);
+    // gale_set_efold(data_ptr, enat);
     gale_set_pfold(data_ptr, pnat);
+    gale_set_efold(data_ptr, enat);
+    gale_set_gfold(data_ptr, gnat);
     gale_set_ifold(data_ptr, inat);
     gale_set_pbind(data_ptr, pbind);
     gale_set_ibind(data_ptr, ibind);
     gale_set_ebind(data_ptr, ebind);
+    gale_set_gbind(data_ptr, gbind);
     
     // prepare for folding (allocates GPU arrays)
     gale_fold_prepare(data_ptr);
@@ -117,13 +124,15 @@ int main(int argc, char **argv) {
     // some simple fold output ...
     {
         FILE *fp = fopen(fold_out_fname,"w");
-        for (int i = 0; i < num_seq; i++) { fprintf(fp, "%d %.3f\n", inat[i], pnat[i]); }
+        fprintf(fp, "nat_id p_nat e_nat dG_nat\n");
+        for (int i = 0; i < num_seq; i++) { fprintf(fp, "%d %.3f %.3f %.3f\n", inat[i], pnat[i], enat[i], gnat[i]); }
         fclose(fp);
     }
     // some simple bind output ...
     {
         FILE *fp = fopen(bind_out_fname,"w"); 
-        for (int i = 0; i < num_pairs; i++) { fprintf(fp, "%d %d %d %d %f %d %f\n", bind_pairs[2*i+0], bind_pairs[2*i+1], conf_pairs[2*i+0], conf_pairs[2*i+1], ebind[i], ibind[i], pbind[i]); } 
+        fprintf(fp, "seq1 seq2 conf1 conf2 e_bind i_bind p_bind dG_bind\n");
+        for (int i = 0; i < num_pairs; i++) { fprintf(fp, "%d %d %d %d %.3f %d %.3f %.3f\n", bind_pairs[2*i+0], bind_pairs[2*i+1], conf_pairs[2*i+0], conf_pairs[2*i+1], ebind[i], ibind[i], pbind[i], gbind[i]); } 
         fclose(fp);
     }
 
@@ -132,9 +141,12 @@ int main(int argc, char **argv) {
     if(conf_pairs != NULL) { free(conf_pairs); }
     if(seqarray != NULL) { free(seqarray); }
     if(pnat != NULL) { free(pnat); }
+    if(enat != NULL) { free(enat); }
+    if(gnat != NULL) { free(gnat); }
     if(inat != NULL) { free(inat); }
     if(pbind != NULL) { free(pbind); }
     if(ebind != NULL) { free(ebind); }
+    if(gbind != NULL) { free(gbind); }
     if(ibind != NULL) { free(ibind); }
 
     // free memory allocated on the GPU
