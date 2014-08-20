@@ -3,6 +3,7 @@ protein folding.
 
 System requirements 
 Hardware: NVIDIA GPU with compute capability 2.0 or higher
+OS: Tested on Ubuntu 12.04 LTE; compatible with CentOS and other Linux distributions
 Software: CUDA 5.0 or above.
 
 Download GALEprot:
