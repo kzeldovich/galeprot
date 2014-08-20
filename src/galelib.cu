@@ -5,7 +5,7 @@
 #include "kernels.h"
 
 
-// #include cuda shmuda etc ...
+// include cuda etc ...
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 
@@ -603,17 +603,14 @@ void gale_fold_prepare(GALE_Data *gd){
 }
 void gale_bind_prepare(GALE_Data *gd){
     //
-    // clean up binding allocations (do we need to do this in a separate function????) ...
     if (gd->bind_seq_pairs_device != NULL) { Safe_CUDA_Call(cudaFree(gd->bind_seq_pairs_device)); }
     if (gd->bind_conf_pairs_device != NULL) { Safe_CUDA_Call(cudaFree(gd->bind_conf_pairs_device)); }
-    // if (gd->seqseq_evectors_device != NULL) { Safe_CUDA_Call(cudaFree(gd->seqseq_evectors_device)); }
     if (gd->bind_residues_device != NULL) { Safe_CUDA_Call(cudaFree(gd->bind_residues_device)); }    
     if (gd->pbind_device != NULL) { Safe_CUDA_Call(cudaFree(gd->pbind_device)); }
     if (gd->gbind_device != NULL) { Safe_CUDA_Call(cudaFree(gd->gbind_device)); }
     if (gd->ibind_device != NULL) { Safe_CUDA_Call(cudaFree(gd->ibind_device)); }
     if (gd->ebind_device != NULL) { Safe_CUDA_Call(cudaFree(gd->ebind_device)); }
     if (gd->sbind_device != NULL) { Safe_CUDA_Call(cudaFree(gd->sbind_device)); }
-    // do we need to do this in a separate function????
     //
     Safe_CUDA_Call(cudaMalloc((void**)&gd->bind_seq_pairs_device, 2*gd->num_pairs*sizeof(int) ));
     Safe_CUDA_Call(cudaMalloc((void**)&gd->bind_conf_pairs_device, 2*gd->num_pairs*sizeof(int) ));
@@ -639,9 +636,6 @@ void gale_bind_prepare(GALE_Data *gd){
 
 
 void gale_fold_unprepare(GALE_Data *gd){
-    // what to do with seqarray ??????????????????????
-    // if (gd->seqarray_device != NULL) { Safe_CUDA_Call(cudaFree(gd->seqarray_device)); }
-    // if (gd->seq_evector_device != NULL) { Safe_CUDA_Call(cudaFree(gd->seq_evector_device)); }
     if (gd->pfold_device != NULL) { Safe_CUDA_Call(cudaFree(gd->pfold_device)); gd->pfold_device = NULL;}
     if (gd->gfold_device != NULL) { Safe_CUDA_Call(cudaFree(gd->gfold_device)); gd->gfold_device = NULL;}
     if (gd->ifold_device != NULL) { Safe_CUDA_Call(cudaFree(gd->ifold_device)); gd->ifold_device = NULL;}
@@ -649,11 +643,8 @@ void gale_fold_unprepare(GALE_Data *gd){
     if (gd->sfold_device != NULL) { Safe_CUDA_Call(cudaFree(gd->sfold_device)); gd->sfold_device = NULL;}
 }
 void gale_bind_unprepare(GALE_Data *gd){
-    // what to do with seqarray ??????????????????????
-    // clean up binding allocations (do we need to do this in a separate function????) ...
     if (gd->bind_seq_pairs_device != NULL) { Safe_CUDA_Call(cudaFree(gd->bind_seq_pairs_device)); gd->bind_seq_pairs_device = NULL; }
     if (gd->bind_conf_pairs_device != NULL) { Safe_CUDA_Call(cudaFree(gd->bind_conf_pairs_device)); gd->bind_conf_pairs_device = NULL; }
-    // if (gd->seqseq_evectors_device != NULL) { Safe_CUDA_Call(cudaFree(gd->seqseq_evectors_device)); gd->seqseq_evectors_device = NULL; }
     if (gd->bind_residues_device != NULL) { Safe_CUDA_Call(cudaFree(gd->bind_residues_device)); gd->bind_residues_device = NULL; }
     if (gd->pbind_device != NULL) { Safe_CUDA_Call(cudaFree(gd->pbind_device)); gd->pbind_device = NULL; }
     if (gd->gbind_device != NULL) { Safe_CUDA_Call(cudaFree(gd->gbind_device)); gd->gbind_device = NULL; }
@@ -677,11 +668,6 @@ void gale_fold_compute(GALE_Data *gd, float fold_temp){
     //
     dim3 grid(1,1,1);
     dim3 block2D(16,16,1);
-    // we'd need array of mutexes for new min/max reduction function ...
-    int *mutex_array;
-    Safe_CUDA_Call(cudaMalloc((void**)&mutex_array, gd->fold_chunk_size*sizeof(int)));
-    Safe_CUDA_Call(cudaMemset(mutex_array, 0, gd->fold_chunk_size*sizeof(int)));
-    //
     // sequences to fold are reffered by gd->seqarray_host ...
     // copy them from host to device ...
     Safe_CUDA_Call(cudaMemcpy(gd->seqarray_device, gd->seqarray_host, gd->num_seq*gd->max_seqlen*sizeof(unsigned char), cudaMemcpyHostToDevice));
@@ -690,6 +676,13 @@ void gale_fold_compute(GALE_Data *gd, float fold_temp){
     if (gd->report_level >= GALE_REPORTS_VERBOSE) {
         printf("Number of chunks is calculated in fold function:\n%d sequences to fold in %d chunks.\n",gd->num_seq,fold_num_chunks);
     }
+    // intermediate arrays ...
+    float *tmp_efold;
+    int *tmp_ifold;
+    Safe_CUDA_Call(cudaMalloc((void **)&tmp_efold, REDUCTION_GRIDX*gd->fold_chunk_size*sizeof(float)));
+    Safe_CUDA_Call(cudaMalloc((void **)&tmp_ifold, REDUCTION_GRIDX*gd->fold_chunk_size*sizeof(int)));
+    //
+    //
     // MAIN LOOP TO PROCESS DATA IN CHUNKS IS HERE ...
     for (i = 0; i < fold_num_chunks; i++) {
         // update initial state ...
@@ -705,6 +698,7 @@ void gale_fold_compute(GALE_Data *gd, float fold_temp){
                                                         gd->forcefield_device, gd->idxlut_device,
                                                         gd->max_seqlen, gd->existing_contacts,
                                                         iter_chunk_size);
+        // Safe_CUDA_Call(cudaDeviceSynchronize());
         // calculate spectrum, multiplying structural matrix by seq_evectors in cuBLAS ...
         Safe_CUBLAS_Call(cublasSgemm(   handle, CUBLAS_OP_N, CUBLAS_OP_N, 
                                         gd->num_conf, iter_chunk_size, 
@@ -715,24 +709,29 @@ void gale_fold_compute(GALE_Data *gd, float fold_temp){
                                         &beta, 
                                         gd->sfold_device, gd->num_conf));
         // get native conformation indexes and their energy levels ...
-        Safe_CUDA_Call(cudaMemset(gd->efold_device, 0x77, gd->fold_chunk_size*sizeof(int)));
-        grid.x = SPLIT(gd->num_conf,2*block2D.x*WORK_str); grid.y = SPLIT(iter_chunk_size,block2D.y);
-        experimental_reduction2D<<<grid,block2D>>>( mutex_array, gd->sfold_device,
-                                                    gd->efold_device, gd->ifold_device,
+        grid.x = REDUCTION_GRIDX; grid.y = SPLIT(iter_chunk_size,block2D.y);
+        reduction_multi_blocks<<<grid,block2D,2*block2D.x*block2D.y*sizeof(float)>>>( gd->sfold_device,
+                                                    tmp_efold, tmp_ifold,
                                                     gd->num_conf, iter_chunk_size);
+        // Safe_CUDA_Call(cudaDeviceSynchronize());
+        grid.x = 1;
+        reduction_one_block<<<grid,block2D,2*block2D.x*block2D.y*sizeof(float)>>>( tmp_efold, tmp_ifold,
+                                                    gd->efold_device, gd->ifold_device,
+                                                    REDUCTION_GRIDX, iter_chunk_size);
         // Safe_CUDA_Call(cudaDeviceSynchronize());
         // get probability of the native state ...
         // grid is exactly the same (so far) as at getting enative and e_idx_natrive ...
         // but we have to zero-out pnat array, as we're using atomics on it ...
+        grid.x = REDUCTION_GRIDX;
         Safe_CUDA_Call(cudaMemset(gd->pfold_device, 0,  gd->fold_chunk_size*sizeof(float) ));
-        sub_exp_reduction<<<grid,block2D>>>(    gd->sfold_device, gd->efold_device,
+        sub_exp_reduction<<<grid,block2D,block2D.x*block2D.y*sizeof(float)>>>(    gd->sfold_device, gd->efold_device,
                                                 gd->pfold_device, gd->num_conf,
                                                 iter_chunk_size, fold_exp_coeff); // last parameter is 1/T
         // Safe_CUDA_Call(cudaDeviceSynchronize());
         // finally, inverse the result stored in gd->pfold_device (so far stat. summs) to get Pnat-s ...
         block2D.x = 64; block2D.y = 1;
-        grid.x = SPLIT(iter_chunk_size,2*block2D.x*WORK_str); grid.y = 1;
-        kernel_invert_Z<<<grid,block2D>>>(gd->pfold_device, iter_chunk_size);
+        grid.x = REDUCTION_GRIDX; grid.y = 1;
+        kernel_invert_Z_deltaG<<<grid,block2D>>>(gd->pfold_device, gd->gfold_device, iter_chunk_size, fold_temp);
         // Safe_CUDA_Call(cudaDeviceSynchronize());
         // i-th iteration is complete now: native indexes are in (gd->ifold_device) and native probabs are in (gd->pfold_device)
         // TODO make use of streams and send these partial results back to host in an asynchronous fashion ...         
@@ -744,8 +743,8 @@ void gale_fold_compute(GALE_Data *gd, float fold_temp){
         }
         // copy partial results of deltaG back to host ...
         if (gd->outlist_fold & GALE_RETURN_DG_FOLD) {
-            Safe_CUDA_Call(cudaMemcpy(  gd->pfold_host + i*gd->fold_chunk_size, // each chunk goes in its place @ the host ...
-                                        gd->pfold_device, iter_chunk_size*sizeof(float),
+            Safe_CUDA_Call(cudaMemcpy(  gd->gfold_host + i*gd->fold_chunk_size, // each chunk goes in its place @ the host ...
+                                        gd->gfold_device, iter_chunk_size*sizeof(float),
                                         cudaMemcpyDeviceToHost));
         }
         // copy partial results of native indexes back to host ...
@@ -768,10 +767,13 @@ void gale_fold_compute(GALE_Data *gd, float fold_temp){
         }
     }
     // dealloc locally allocated arrays ...
-    Safe_CUDA_Call(cudaFree(mutex_array));
+    Safe_CUDA_Call(cudaFree(tmp_efold));
+    Safe_CUDA_Call(cudaFree(tmp_ifold));
     Safe_CUBLAS_Call(cublasDestroy(handle));
     return;
 }
+
+
 // bind ...
 void gale_bind_compute(GALE_Data *gd, float bind_temp){
     // init grid dimensions ...
@@ -801,28 +803,10 @@ void gale_bind_compute(GALE_Data *gd, float bind_temp){
         int *seq_pairs_chunk = gd->bind_seq_pairs_device + i*2*gd->bind_chunk_size;
         int *conf_pairs_chunk = gd->bind_conf_pairs_device + i*2*gd->bind_chunk_size;
         //
-        // (SeqSeqEvector is not needed ...)
-        // // first kernel to generate seqseq energetic vectors ...
-        // grid.x = 1; grid.y = SPLIT(iter_chunk_size,block.y); grid.z = 1;
-        // shmem = ALPHABET*ALPHABET*sizeof(float) + block.y*2*gd->max_seqlen*sizeof(int);
-        // // launch kernel ...
-        // get_seq_pairwise_vector<<<grid,block,shmem>>>(  gd->seqarray_device, gd->seqseq_evectors_device,
-        //                                                 seq_pairs_chunk, gd->forcefield_device,
-        //                                                 iter_chunk_size, gd->max_seqlen);
-        // // Safe_CUDA_Call(cudaDeviceSynchronize());
-        // //
         // first kernel to get binding spectra coords ...
         block.x = 16; block.y = 4; block.z = 4;
         grid.x = SPLIT(gd->face_size,block.x); grid.y = 1; grid.z = SPLIT(iter_chunk_size,block.z);
-        // shmem = FACES*block.z*block.x*sizeof(int);
-        // // launch kernel ...
-        // get_binding_spectra_coords<<<grid,block,shmem>>>(   gd->bind_residues_device, gd->bind_faces_device,
-        //                                                     conf_pairs_chunk, iter_chunk_size,
-        //                                                     gd->edge_len, gd->max_seqlen);
-        // //
         //
-        // size_t shmem_faces = FACES*block.z*block.x*sizeof(int)+FACES*ORIENTATIONS*block.z*block.x*sizeof(int);
-        // size_t shmem_faces_seqs = shmem_faces + block.z*2*gd->max_seqlen*sizeof(int);
         shmem = FACES*block.z*block.x*sizeof(int)+FACES*ORIENTATIONS*block.z*block.x*sizeof(int);
         shmem += block.z*2*gd->max_seqlen*sizeof(int);
         // invoke kernel here ...
@@ -831,37 +815,31 @@ void gale_bind_compute(GALE_Data *gd, float bind_temp){
                                                                         gd->edge_len, gd->max_seqlen);
         //
         //
-        // Safe_CUDA_Call(cudaDeviceSynchronize());
+        Safe_CUDA_Call(cudaDeviceSynchronize());
         //
         // get spectrum 144 for all pairs ...
         block.x = 16; block.y = 16; block.z = 1;
         grid.x = 1; grid.y = SPLIT(iter_chunk_size*C144,block.y*9); grid.z = 1;
-        // shmem = gd->max_seqlen*gd->max_seqlen*sizeof(float);
-        // // invoke kernel here ...
-        // combine_spectra_skeleton_seqseq<<<grid,block,shmem>>>(  gd->sbind_device, gd->bind_residues_device,
-        //                                                         gd->seqseq_evectors_device, iter_chunk_size,
-        //                                                         gd->max_seqlen, gd->edge_len);
-        //
-        shmem = ALPHABET*ALPHABET*sizeof(float);
-        //
+        shmem = ALPHABET*ALPHABET*sizeof(float) + block.x*block.y*sizeof(float);
         combine_spectra_skeleton_seqseq_FF<<<grid,block,shmem>>>( gd->sbind_device, gd->bind_residues_device,
                                                                                             gd->forcefield_device, iter_chunk_size,
                                                                                             gd->max_seqlen, gd->edge_len);
         //
         //
-        // Safe_CUDA_Call(cudaDeviceSynchronize());
+        Safe_CUDA_Call(cudaDeviceSynchronize());
         //
         // find native states (bind states) ...
+        shmem = 2*block.x*block.y*sizeof(float);
         grid.x = 1; grid.y = SPLIT(iter_chunk_size,block.y); grid.z = 1;
-        min_reduction2D_144<<<grid,block>>>(gd->sbind_device, gd->ebind_device,
+        min_reduction2D_144<<<grid,block,shmem>>>(gd->sbind_device, gd->ebind_device,
                                             gd->ibind_device, iter_chunk_size);
-        // Safe_CUDA_Call(cudaDeviceSynchronize());
+        Safe_CUDA_Call(cudaDeviceSynchronize());
         //
         // find pbind here ...
-        sub_exp_reduction144<<<grid,block>>>(   gd->sbind_device, gd->ebind_device,
-                                                gd->pbind_device, iter_chunk_size, bind_exp_coeff);
-        // Safe_CUDA_Call(cudaDeviceSynchronize());
-        ///////////////////////////////////
+        shmem = block.x*block.y*sizeof(float);
+        sub_exp_reduction144<<<grid,block,shmem>>>(   gd->sbind_device, gd->ebind_device,
+                                                gd->pbind_device, gd->gbind_device, iter_chunk_size, bind_exp_coeff);
+        Safe_CUDA_Call(cudaDeviceSynchronize());
         //
         // copy partial results of Pnat binding back to host ...
         if (gd->outlist_bind & GALE_RETURN_PNAT_BIND) {
@@ -871,8 +849,8 @@ void gale_bind_compute(GALE_Data *gd, float bind_temp){
         }
         // copy partial results of deltaG binding back to host ...
         if (gd->outlist_bind & GALE_RETURN_DG_BIND) {
-            Safe_CUDA_Call(cudaMemcpy(  gd->pbind_host + i*gd->bind_chunk_size, // each chunk goes in its place @ the host ...
-                                        gd->pbind_device, iter_chunk_size*sizeof(float),
+            Safe_CUDA_Call(cudaMemcpy(  gd->gbind_host + i*gd->bind_chunk_size, // each chunk goes in its place @ the host ...
+                                        gd->gbind_device, iter_chunk_size*sizeof(float),
                                         cudaMemcpyDeviceToHost));
         }
         // copy partial results of native binding indexes back to host ...
@@ -893,9 +871,7 @@ void gale_bind_compute(GALE_Data *gd, float bind_temp){
                                         gd->sbind_device, iter_chunk_size*C144*sizeof(float),
                                         cudaMemcpyDeviceToHost));
         }
-        //
     }    
-    //
     return;
 }
 
