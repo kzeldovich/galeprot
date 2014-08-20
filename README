@@ -2,7 +2,7 @@ GALEprot is a GPU-accelerated library for protein threading and lattice
 protein folding.
 
 System requirements 
-Hardware: NVIDIA GPU with compute capability 3.0 or higher
+Hardware: NVIDIA GPU with compute capability 2.0 or higher
 Software: CUDA 5.0 or above.
 
 Download GALEprot:
