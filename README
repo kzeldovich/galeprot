@@ -19,5 +19,7 @@ Compile and run examples:
 
 cd examples
 make
-./runme
+./folding
+./protein-design
+
 
