@@ -1,6 +1,13 @@
 The two examples show the use of GaleProt for folding proteins, and
 designing sequences to increase Pnat (or deltaG).
 
+The ../data directory contains all files needed to run the examples:
+-contact maps for 10,000 compact 64-mers
+-Miyazawa and Jernigan 1996 interaction potential
+-indices of surface residues of the compact 64-mers, needed for binding
+calculations
+-set of random sequences
+
 The folding.cpp example loads 64-mer sequences from a big file, 
 and calculates their Pnat and index of native structures.
 It then loads a list of pairs of sequences to calculate binding energy in,
