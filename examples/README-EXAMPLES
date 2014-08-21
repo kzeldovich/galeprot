@@ -1,0 +1,14 @@
+The two examples show the use of GaleProt for folding proteins, and
+designing sequences to increase Pnat (or deltaG).
+
+The folding.cpp example loads 64-mer sequences from a big file, 
+and calculates their Pnat and index of native structures.
+It then loads a list of pairs of sequences to calculate binding energy in,
+and calculates binding.
+
+The protein-design.cpp example uses a Monte Carlo approach 
+to start with 100,000 random 64-mers, and mutates them to increase 
+Pnat over 10 iterations. This design procedure was used by 
+Berezovsky et al for 27-mers in a 2007 PLoS CB paper,
+http://www.ploscompbiol.org/article/info%3Adoi%2F10.1371%2Fjournal.pcbi.0030052
+
