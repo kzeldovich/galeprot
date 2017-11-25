@@ -1,2 +1,6 @@
+# exclude macOS stuff
+.DS_Store
+
+
 # exclude the build folder
 /build
